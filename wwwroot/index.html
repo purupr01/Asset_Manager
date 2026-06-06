@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ITProAcademy Asset Manager</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="login-screen hidden">
+      <div class="login-bg-art"></div>
+      <div class="login-card">
+        <div class="login-brand">
+          <div class="login-brand-mark">AM</div>
+          <div>
+            <strong>Asset Manager</strong>
+            <span>Enterprise asset platform</span>
+          </div>
+        </div>
+        <h2>Sign in to continue</h2>
+        <p class="login-sub">Enter your credentials to access the asset management console.</p>
+        <form id="loginForm" autocomplete="off">
+          <label>
+            Username
+            <input id="loginUsername" name="username" type="text" placeholder="username" autocomplete="username" required />
+          </label>
+          <label>
+            Password
+            <div class="pw-wrap">
+              <input id="loginPassword" name="password" type="password" placeholder="••••••••" autocomplete="current-password" required />
+              <button type="button" class="pw-toggle" id="pwToggle" tabindex="-1" aria-label="Show password">&#128065;</button>
+            </div>
+          </label>
+          <div id="loginError" class="login-error" hidden></div>
+          <button type="submit" class="primary login-btn">Sign In</button>
+        </form>
+        <div class="login-reset">
+          <button type="button" class="login-reset-btn" onclick="resetAuthStore()">First time setup / Reset users</button>
+        </div>
+        <div class="login-footer">ITProAcademy.co.in</div>
+      </div>
+    </div>
+
+    <!-- MAIN APP SHELL -->
+    <div id="appShell" class="app-shell">
+      <aside class="sidebar" aria-label="Primary navigation">
+        <div class="brand-block">
+          <div class="brand-mark">AM</div>
+          <div>
+            <strong>Asset Manager</strong>
+            <span>Enterprise asset platform</span>
+          </div>
+        </div>
+        <nav>
+          <button class="nav-item active" data-view="dashboard">Dashboard</button>
+          <button class="nav-item" data-view="assets">Assets</button>
+          <button class="nav-item" data-view="employees">Employees</button>
+          <button class="nav-item" data-view="maintenance">Maintenance</button>
+          <button class="nav-item" data-view="reports">Reports</button>
+          <button class="nav-item" data-view="users">Access Control</button>
+          <button class="nav-item" data-view="settings">Settings</button>
+        </nav>
+        <div id="sessionBar" class="session-bar"></div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="logo-wrap">
+            <img id="companyLogo" alt="Company logo" />
+            <div>
+              <h1 id="screenTitle">Dashboard</h1>
+              <p id="screenSubtitle">Live overview of company assets, assignments, warranty exposure, and office health.</p>
+            </div>
+          </div>
+          <div class="top-actions">
+            <input id="globalSearch" type="search" placeholder="Search..." style="display:none" />
+          </div>
+        </header>
+
+        <section class="license-banner" id="licenseBanner" hidden>
+          <strong>Activation required.</strong>
+          <span>Enter a valid key in Settings to unlock all features.</span>
+        </section>
+
+        <div id="activationGate" class="activation-gate" hidden>
+          <div class="gate-card">
+            <div class="gate-icon">&#128274;</div>
+            <h2>Activation Required</h2>
+            <p>Enter a valid activation key in <strong>Settings</strong> to unlock the full asset manager.</p>
+            <button class="primary" onclick="document.querySelector('[data-view=settings]').click()">Go to Settings</button>
+          </div>
+        </div>
+
+        <!-- DASHBOARD -->
+        <section class="view active" id="dashboardView">
+          <div class="metrics-grid" id="metricsGrid"></div>
+          <div class="content-grid">
+            <section class="panel wide">
+              <div class="panel-head">
+                <h2>Office Inventory</h2>
+                <button class="ghost requires-download" data-export="branch">Export</button>
+              </div>
+              <div class="bar-chart" id="branchChart"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Lifecycle Alerts</h2></div>
+              <div class="alert-list" id="alertList"></div>
+            </section>
+          </div>
+          <section class="panel">
+            <div class="panel-head"><h2>Recent Activity</h2></div>
+            <div class="activity-list" id="activityList"></div>
+          </section>
+        </section>
+
+        <!-- ASSETS -->
+        <section class="view" id="assetsView">
+          <div class="toolbar">
+            <select id="assetStatusFilter">
+              <option value="">All statuses</option>
+              <option>Assigned</option><option>Available</option>
+              <option>In Repair</option><option>Retired</option>
+            </select>
+            <select id="assetBranchFilter"><option value="">All offices</option></select>
+            <button class="primary requires-write" id="openAssetForm">New Asset</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Asset Tag</th><th>Asset Name</th><th>Type</th><th>Model</th><th>Assigned To</th>
+                  <th>Office</th><th>Status</th><th>Warranty</th><th>Value</th>
+                  <th class="requires-write">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="assetRows"></tbody>
+            </table>
+          </div>
+          <section class="panel import-panel requires-write" style="margin-top:20px;">
+            <h2>Computer Object Import</h2>
+            <p class="muted csv-help">Upload a CSV export of computer objects: <code>name, os, office, serialNumber, model, assignedUser</code>. Existing assets matched by serial number are skipped.</p>
+            <div class="import-row">
+              <input id="assetImportCsv" type="file" accept=".csv" />
+              <button class="ghost" id="downloadComputerTemplate">&#11123; Download Template</button>
+            </div>
+            <div id="assetImportStatus" class="status-box"></div>
+          </section>
+        </section>
+
+        <!-- EMPLOYEES -->
+        <section class="view" id="employeesView">
+          <div class="toolbar">
+            <button class="primary requires-write" id="openEmployeeForm">New Employee</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Employee ID</th><th>Full Name</th><th>Email</th><th>Department</th>
+                  <th>Manager</th><th>Mobile Number</th><th>Office</th><th>Assets</th>
+                  <th class="requires-write">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="employeeRows"></tbody>
+            </table>
+          </div>
+          <section class="panel import-panel requires-write" style="margin-top:20px;">
+            <h2>User Object Import</h2>
+            <p class="muted csv-help">Upload a CSV with columns: <code>employeeId, name, email, department, manager, mobile, office</code>. Existing users matched by email are updated.</p>
+            <div class="import-row">
+              <input id="employeeImportCsv" type="file" accept=".csv" />
+              <button class="ghost" id="downloadUserTemplate">&#11123; Download Template</button>
+            </div>
+            <div id="employeeImportStatus" class="status-box"></div>
+          </section>
+        </section>
+
+        <!-- MAINTENANCE -->
+        <section class="view" id="maintenanceView">
+          <div class="toolbar">
+            <select id="ticketStatusFilter">
+              <option value="">All statuses</option>
+              <option>Open</option><option>In Progress</option>
+              <option>On Hold</option><option>Closed</option>
+            </select>
+            <select id="ticketPriorityFilter">
+              <option value="">All priorities</option>
+              <option>Low</option><option>Medium</option>
+              <option>High</option><option>Critical</option>
+            </select>
+            <button class="ghost requires-download" id="exportTicketsCsv">&#11123; Export CSV</button>
+            <button class="primary requires-write" id="openTicketForm">New Ticket</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ticket ID</th><th>Title</th><th>Category</th><th>Priority</th>
+                  <th>Status</th><th>Owner</th><th>Requester</th><th>Asset</th>
+                  <th>Due Date</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="ticketRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- REPORTS -->
+        <section class="view" id="reportsView">
+          <div class="rbac-gate" id="reportsGate" style="display:none">
+            <div class="rbac-gate-card">
+              <div class="gate-icon">📊</div>
+              <h3>Reports Access Restricted</h3>
+              <p>Your current role does not have permission to view reports. Contact your administrator.</p>
+            </div>
+          </div>
+          <div id="reportsContent" style="display:none">
+            <div class="report-layout">
+              <section class="panel">
+                <h2>Report Builder</h2>
+                <label>Report Type
+                  <select id="reportType">
+                    <option value="summary">Executive Summary</option>
+                    <option value="inventory">Full Inventory</option>
+                    <option value="warranty">Warranty and AMC</option>
+                    <option value="licenses">Software Licenses</option>
+                    <option value="branch">Office Allocation</option>
+                    <option value="tickets">Maintenance Tickets</option>
+                    <option value="custom">Custom Report</option>
+                  </select>
+                </label>
+                <label>Office
+                  <select id="reportBranch"><option value="">All offices</option></select>
+                </label>
+
+                <!-- Custom report builder (shown only for custom type) -->
+                <div id="customReportBuilder" style="display:none;margin-top:14px">
+                  <div style="border:1px solid var(--line);border-radius:8px;padding:14px;background:#f8fafc">
+                    <strong style="display:block;margin-bottom:10px;color:var(--ink)">Select Data Sources</strong>
+                    <label class="checkbox-label" style="margin-top:0"><input type="checkbox" id="crAssets" checked> Assets</label>
+                    <label class="checkbox-label"><input type="checkbox" id="crEmployees"> Employees</label>
+                    <label class="checkbox-label"><input type="checkbox" id="crTickets"> Tickets</label>
+                    <hr style="border:none;border-top:1px solid var(--line);margin:12px 0"/>
+                    <strong style="display:block;margin-bottom:8px;color:var(--ink)">Asset Filters</strong>
+                    <label>Status<select id="crAssetStatus"><option value="">All</option><option>Assigned</option><option>Available</option><option>In Repair</option><option>Retired</option></select></label>
+                    <label>Asset Type<select id="crAssetType"><option value="">All types</option></select></label>
+                    <hr style="border:none;border-top:1px solid var(--line);margin:12px 0"/>
+                    <strong style="display:block;margin-bottom:8px;color:var(--ink)">Ticket Filters</strong>
+                    <label>Ticket Status<select id="crTicketStatus"><option value="">All</option><option>Open</option><option>In Progress</option><option>On Hold</option><option>Closed</option></select></label>
+                    <label>Priority<select id="crTicketPriority"><option value="">All</option><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></select></label>
+                  </div>
+                </div>
+
+                <div class="export-row requires-download">
+                  <button class="primary" id="exportDoc">Export .doc</button>
+                  <button class="primary" id="exportXlsx">Export .xlsx</button>
+                  <button class="primary" id="exportPdf">Export .pdf</button>
+                </div>
+              </section>
+              <section class="panel wide">
+                <h2>Preview</h2>
+                <div id="reportPreview" class="report-preview"></div>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <!-- USERS (admin only) -->
+        <section class="view" id="usersView">
+          <div class="toolbar">
+            <button class="primary" id="openUserForm">New User</button>
+          </div>
+          <div class="rbac-overview">
+            <div class="rbac-card" style="--rc:#b83232;--rb:#fdecec">
+              <strong>Admin</strong>
+              <span>Full access: read, write, reports, downloads, user management</span>
+            </div>
+            <div class="rbac-card" style="--rc:#176b87;--rb:#e8f4f8">
+              <strong>Manager</strong>
+              <span>Read, write, view &amp; download reports</span>
+            </div>
+            <div class="rbac-card" style="--rc:#1f8a5b;--rb:#e9f8f0">
+              <strong>Auditor</strong>
+              <span>Read assets &amp; employees, view &amp; download reports</span>
+            </div>
+            <div class="rbac-card" style="--rc:#b7791f;--rb:#fff4df">
+              <strong>Viewer</strong>
+              <span>Read-only access to assets and employees</span>
+            </div>
+          </div>
+          <div class="table-wrap" style="margin-top:14px">
+            <table>
+              <thead>
+                <tr>
+                  <th>User ID</th><th>Full Name</th><th>Username</th><th>Email</th>
+                  <th>Role</th><th>Status</th><th>Created</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="userRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- SETTINGS -->
+        <section class="view" id="settingsView">
+          <div class="settings-grid">
+            <section class="panel">
+              <h2>Branding</h2>
+              <p class="muted">Logo is stored on the server — visible to all users once uploaded.</p>
+              <label>Company Logo<input id="logoUpload" type="file" accept="image/*" /></label>
+              <div style="margin-top:12px" id="logoPreviewWrap" hidden>
+                <img id="logoPreview" style="max-width:180px;max-height:72px;object-fit:contain;border:1px solid var(--line);border-radius:6px;padding:6px;background:#fff" />
+              </div>
+              <button class="ghost" id="clearLogo" style="margin-top:10px">Remove Logo</button>
+              <div id="logoStatus" class="status-box" style="margin-top:10px"></div>
+            </section>
+
+            <section class="panel">
+              <h2>Offices</h2>
+              <p class="muted">Define office locations. Used in Branch fields across assets and employees.</p>
+              <div style="display:flex;gap:8px;align-items:flex-end;margin-top:14px">
+                <label style="flex:1;margin-top:0">Office Name<input id="newBranchName" placeholder="e.g. Bangalore HQ" /></label>
+                <button class="primary requires-write" id="addBranch" style="margin-bottom:1px">Add</button>
+              </div>
+              <div class="branch-list" id="branchList"></div>
+            </section>
+
+            <section class="panel">
+              <h2>Asset Types</h2>
+              <p class="muted">Manage the list of asset types available in the Assets tab Type field.</p>
+              <div style="display:flex;gap:8px;align-items:flex-end;margin-top:14px">
+                <label style="flex:1;margin-top:0">Type Name<input id="newAssetTypeName" placeholder="e.g. Tablet, UPS, Camera" /></label>
+                <button class="primary requires-write" id="addAssetType" style="margin-bottom:1px">Add</button>
+              </div>
+              <div class="branch-list" id="assetTypeList"></div>
+            </section>
+
+            <section class="panel">
+              <h2>Activation</h2>
+              <p class="muted">Enter an activation key issued by your ITProAcademy.co.in admin team.</p>
+              <label>Activation Key<input id="activationKey" placeholder="ITPRO-YYYYMMDD-DAYS-SALT-XXXX" /></label>
+              <div class="export-row">
+                <button class="primary" id="activateTool">Activate</button>
+              </div>
+              <div id="licenseStatus" class="status-box"></div>
+            </section>
+
+            <section class="panel wide">
+              <h2>Enterprise Features Included</h2>
+              <div class="feature-grid">
+                <span>Asset lifecycle</span><span>Assignment history</span><span>Warranty tracking</span><span>AMC tracking</span>
+                <span>Software licenses</span><span>Office allocation</span><span>Maintenance tickets</span><span>Audit reports</span>
+                <span>User object import</span><span>Logo branding</span><span>Activation control</span><span>Export reports</span>
+                <span>10,000+ employees</span><span>Custom asset types</span><span>Office governance</span><span>Audit-ready data</span>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <footer class="app-footer">ITProAcademy.co.in</footer>
+
+    <!-- Entity Dialog -->
+    <dialog id="entityDialog">
+      <div id="entityDialogInner">
+        <h2 id="dialogTitle">Add Record</h2>
+        <div id="dialogFields"></div>
+        <div class="dialog-actions">
+          <button type="button" class="ghost" id="cancelDialog">Cancel</button>
+          <button type="button" class="primary" id="saveEntity">Save</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- User Dialog -->
+    <dialog id="userDialog">
+      <form id="userForm">
+        <h2 id="userDialogTitle">Create User</h2>
+        <div id="userFields"></div>
+        <div class="dialog-actions">
+          <button type="button" class="ghost" id="cancelUserDialog">Cancel</button>
+          <button type="button" class="primary" id="saveUserBtn">Save User</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Ticket Detail Dialog -->
+    <dialog id="ticketDetailDialog">
+      <div id="ticketDetailInner" style="max-width:600px;width:100%">
+        <div class="panel-head">
+          <h2 id="ticketDetailTitle">Ticket Details</h2>
+          <button type="button" class="ghost" id="closeTicketDetail">Close</button>
+        </div>
+        <div id="ticketDetailBody"></div>
+      </div>
+    </dialog>
+
+    <script src="auth.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
