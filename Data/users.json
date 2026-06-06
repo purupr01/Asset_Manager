@@ -1,0 +1,12 @@
+[
+  {
+    "id": "USR0001",
+    "username": "admin",
+    "passwordHash": "185030e45f64abc6",
+    "fullName": "System Administrator",
+    "email": "admin@company.local",
+    "role": "admin",
+    "active": true,
+    "createdAt": "2026-01-01T00:00:00.000Z"
+  }
+]
